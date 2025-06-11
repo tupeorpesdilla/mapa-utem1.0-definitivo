@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mapa Exclusivo - UTEM Macul</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: 'Montserrat', sans-serif;
+      background: linear-gradient(135deg, #232526 0%, #414345 100%);
+      color: #fff;
+    }
+    #login-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: rgba(30,30,30,0.97);
+    }
+    #login-box {
+      background: rgba(255,255,255,0.07);
+      padding: 40px 30px;
+      border-radius: 18px;
+      box-shadow: 0 8px 32px 0 rgba(31,38,135,0.37);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.18);
+      text-align: center;
+      min-width: 320px;
+    }
+    #login-box h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.2em;
+      margin-bottom: 20px;
+      color: #ffd700;
+      letter-spacing: 1px;
+    }
+    #login-box input, #login-box button {
+      width: 90%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: none;
+      font-size: 1em;
+      outline: none;
+    }
+    #login-box input {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      border: 1px solid #ffd700;
+    }
+    #login-box button {
+      background: linear-gradient(90deg, #ffd700 0%, #b8860b 100%);
+      color: #232526;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    #login-box button:hover {
+      background: linear-gradient(90deg, #b8860b 0%, #ffd700 100%);
+    }
+    #login-error {
+      color: #ff4d4d;
+      margin-top: 10px;
+      display: none;
+    }
+    /* Sidebar */
+    #sidebar {
+      position: fixed;
+      left: -260px;
+      top: 0;
+      width: 260px;
+      height: 100%;
+      background: rgba(30,30,30,0.98);
+      box-shadow: 2px 0 12px rgba(0,0,0,0.2);
+      transition: left 0.3s;
+      z-index: 1001;
+      padding-top: 60px;
+    }
+    #sidebar.active {
+      left: 0;
+    }
+    #sidebar ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    #sidebar ul li {
+      padding: 18px 30px;
+      border-bottom: 1px solid #444;
+      font-size: 1.1em;
+      color: #ffd700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #sidebar ul li:hover {
+      background: #232526;
+    }
+    #sidebar .sidebar-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.4em;
+      color: #ffd700;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+    /* Sidebar toggle button */
+    #sidebar-toggle {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      background: #ffd700;
+      color: #232526;
+      border: none;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      font-size: 1.5em;
+      cursor: pointer;
+      z-index: 1100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    #sidebar-toggle:hover {
+      background: #b8860b;
+    }
+    /* Main content */
+    #main-content {
+      margin-left: 0;
+      transition: margin-left 0.3s;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: rgba(40, 44, 52, 0.92);
+      border-radius: 18px;
+      box-shadow: 0 8px 32px 0 rgba(31,38,135,0.25);
+      margin: 30px 30px 30px 0;
+      padding-bottom: 30px;
+      overflow: hidden;
+    }
+    #main-content.shifted {
+      margin-left: 260px;
+    }
+    #logout-btn {
+      position: absolute;
+      top: 18px;
+      right: 24px;
+      background: #ffd700;
+      color: #232526;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 22px;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 1100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      transition: background 0.2s;
+    }
+    #logout-btn:hover {
+      background: #b8860b;
+    }
+    /* Map */
+    #map {
+      flex: 1;
+      min-height: 600px;
+      margin: 60px 30px 30px 30px;
+      border-radius: 18px;
+      box-shadow: 0 8px 32px 0 rgba(31,38,135,0.17);
+      overflow: hidden;
+    }
+    /* Mejoras visuales */
+    #salas-section, #edificios-section, #personalizados-section {
+      background: rgba(30,30,30,0.92);
+      border-radius: 16px;
+      box-shadow: 0 4px 24px 0 rgba(31,38,135,0.18);
+      padding: 28px 24px 18px 24px;
+      margin-top: 40px;
+      margin-bottom: 40px;
+      animation: fadeIn 0.5s;
+      border: 1.5px solid #ffd70033;
+    }
+    #salas-section h2, #edificios-section h2, #personalizados-section h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2em;
+      color: #ffd700;
+      margin-bottom: 18px;
+      letter-spacing: 1px;
+      text-shadow: 0 2px 8px #23252677;
+    }
+    #salas-list li, #edificios-list li, #personalizados-list li {
+      background: rgba(255,255,255,0.07);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      padding: 14px 18px;
+      box-shadow: 0 2px 8px 0 rgba(31,38,135,0.10);
+      transition: background 0.2s, transform 0.2s;
+      font-size: 1.08em;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #salas-list li:hover, #edificios-list li:hover, #personalizados-list li:hover {
+      background: #ffd70022;
+      transform: scale(1.025);
+    }
+    #salas-list button, #edificios-list button {
+      margin-left: 18px;
+      background: linear-gradient(90deg, #ffd700 0%, #b8860b 100%);
+      color: #232526;
+      border: none;
+      border-radius: 7px;
+      padding: 6px 16px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 1em;
+      box-shadow: 0 2px 8px 0 rgba(31,38,135,0.10);
+      transition: background 0.2s, color 0.2s;
+    }
+    #salas-list button:hover, #edificios-list button:hover {
+      background: linear-gradient(90deg, #b8860b 0%, #ffd700 100%);
+      color: #232526;
+    }
+    .leaflet-popup-content {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.08em;
+      color: #232526;
+      text-align: center;
+    }
+    .leaflet-popup-content img {
+      margin-top: 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px #23252633;
+      border: 2px solid #ffd70055;
+      max-width: 180px;
+      max-height: 120px;
+    }
+    .legend {
+      border: 1.5px solid #ffd70055 !important;
+      box-shadow: 0 2px 8px #23252633;
+    }
+    /* Animaciones para secciones */
+    .fade-in {
+      animation: fadeIn 0.5s;
+    }
+    .fade-out {
+      animation: fadeOut 0.5s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(30px);}
+      to { opacity: 1; transform: translateY(0);}
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; transform: translateY(0);}
+      to { opacity: 0; transform: translateY(30px);}
+    }
+  </style>
+  <!-- Sonidos -->
+  <audio id="audio-in" src="audio/entrada.mp3"></audio>
+  <audio id="audio-out" src="audio/salida.mp3"></audio>
+</head>
+<body>
+  <!-- Login -->
+  <div id="login-container">
+    <div id="login-box">
+      <h2>Acceso Exclusivo</h2>
+      <input id="login-user" type="text" placeholder="Usuario" autocomplete="username" />
+      <input id="login-pass" type="password" placeholder="Contraseña" autocomplete="current-password" />
+      <button id="login-btn">Entrar</button>
+      <div id="login-error">Usuario o contraseña incorrectos.</div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sidebar-title">Menú</div>
+    <ul>
+      <li onclick="alert('Ir a inicio')">Inicio</li>
+      <li onclick="alert('Ir a edificios')">Edificios</li>
+      <li onclick="alert('Ir a salas')">Salas</li>
+      <li onclick="alert('Ir a contacto')">Contacto</li>
+      <li onclick="alert('Ir a chat')">Chat</li>
+    </ul>
+  </div>
+  <button id="sidebar-toggle" title="Abrir menú">&#9776;</button>
+
+  <!-- Main content -->
+  <div id="main-content">
+    <button id="logout-btn" style="display:none;">Cerrar sesión</button>
+    <div id="map"></div>
+    <!-- Sección de Salas -->
+    <div id="salas-section" style="display:none; margin:30px;">
+      <h2 style="color:#ffd700;">Salas</h2>
+      <ul id="salas-list" style="list-style:none; padding:0; color:#fff;">
+        <!-- Las salas se llenarán dinámicamente -->
+      </ul>
+    </div>
+    <!-- Sección de Edificios -->
+    <div id="edificios-section" style="display:none; margin:30px;">
+      <h2 style="color:#ffd700;">Edificios</h2>
+      <ul id="edificios-list" style="list-style:none; padding:0; color:#fff;">
+        <!-- Los edificios se llenarán dinámicamente -->
+      </ul>
+    </div>
+    <!-- Sección de Marcadores Personalizados -->
+    <div id="personalizados-section" style="display:none; margin:30px;">
+      <h2 style="color:#ffd700;">Marcadores Personalizados</h2>
+      <ul id="personalizados-list" style="list-style:none; padding:0; color:#fff;">
+        <!-- Los marcadores personalizados se llenarán dinámicamente -->
+      </ul>
+    </div>
+    <!-- Sección de Chat -->
+    <div id="chat-section" style="display:none; margin:30px;">
+      <h2 style="color:#ffd700;">Asistente Virtual</h2>
+      <div id="chat-box" style="background:rgba(30,30,30,0.92);border-radius:12px;padding:18px;min-height:120px;max-width:420px;margin-bottom:12px;color:#fff;box-shadow:0 2px 8px #23252633;font-size:1.08em;"></div>
+      <input id="chat-input" type="text" placeholder="¿Qué sala o edificio buscas?" style="width:70%;padding:10px;border-radius:7px;border:1px solid #ffd700;background:rgba(255,255,255,0.12);color:#fff;">
+      <button id="chat-send" style="background:linear-gradient(90deg,#ffd700 0%,#b8860b 100%);color:#232526;border:none;border-radius:7px;padding:10px 18px;font-weight:bold;cursor:pointer;margin-left:10px;">Enviar</button>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    // Login logic
+    const loginContainer = document.getElementById('login-container');
+    const mainContent = document.getElementById('main-content');
+    const loginBtn = document.getElementById('login-btn');
+    const loginUser = document.getElementById('login-user');
+    const loginPass = document.getElementById('login-pass');
+    const loginError = document.getElementById('login-error');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    loginBtn.onclick = function() {
+      // Redirección especial
+      if (loginUser.value === 'pintor' && loginPass.value === 'aleman') {
+        window.location.href = 'https://www.youtube.com/watch?v=FJ3N_2r6R-o';
+        return;
+      }
+      if (loginUser.value === 'admin' && loginPass.value === '1234') {
+        playIn(); // Reproduce el audio de entrada al iniciar sesión
+        loginContainer.style.display = 'none';
+        mainContent.style.display = 'flex';
+        logoutBtn.style.display = 'block';
+        setTimeout(initMap, 200);
+      } else {
+        loginError.style.display = 'block';
+      }
+    };
+    logoutBtn.onclick = function() {
+      mainContent.style.display = 'none';
+      loginContainer.style.display = 'flex';
+      loginUser.value = '';
+      loginPass.value = '';
+      loginError.style.display = 'none';
+      if (window.map) window.map.remove();
+      playOut(); // Reproduce el audio de salida al cerrar sesión
+    };
+
+    // Sidebar logic
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    sidebarToggle.onclick = function() {
+      sidebar.classList.toggle('active');
+      mainContent.classList.toggle('shifted');
+    };
+
+    // Datos de ejemplo de salas
+    const salas = [
+      { nombre: "Sala 201", ubicacion: [350, 700], descripcion: "Laboratorio de computación", edificio: "M1", imagen: "images/sala201.jpg" },
+      { nombre: "Sala 102", ubicacion: [500, 650], descripcion: "Sala de clases", edificio: "M2", imagen: "images/sala102.jpg" },
+      { nombre: "Sala 201", ubicacion: [600, 400], descripcion: "Sala de reuniones", edificio: "M3", imagen: "images/sala201b.jpg" }
+    ];
+
+    // Datos de ejemplo de edificios
+    const edificios = [
+      { nombre: "M1", ubicacion: [200, 300], descripcion: "Edificio M1", imagen: "images/m1.jpg" },
+      { nombre: "M2", ubicacion: [250, 500], descripcion: "Edificio M2", imagen: "images/m2.jpg" },
+      { nombre: "M3", ubicacion: [300, 700], descripcion: "Edificio M3", imagen: "images/m3.jpg" },
+      { nombre: "M6", ubicacion: [500, 400], descripcion: "Edificio M6", imagen: "images/m6.jpg" },
+      { nombre: "M7", ubicacion: [600, 550], descripcion: "Edificio M7", imagen: "images/m7.jpg" },
+      { nombre: "M8", ubicacion: [700, 300], descripcion: "Edificio M8", imagen: "images/m8.jpg" },
+      { nombre: "M8", ubicacion: [720, 320], descripcion: "Edificio M8", imagen: "images/m8.jpg" },
+      { nombre: "M9", ubicacion: [800, 600], descripcion: "Edificio M9", imagen: "images/m9.jpg" }
+    ];
+
+    // Utilidad para reproducir sonidos
+    function playIn() {
+      const audio = document.getElementById('audio-in');
+      if (audio) { audio.currentTime = 0; audio.play(); }
+    }
+    function playOut() {
+      const audio = document.getElementById('audio-out');
+      if (audio) { audio.currentTime = 0; audio.play(); }
+    }
+
+    // Mostrar sección de salas con animación y sonido
+    function mostrarSalas() {
+      const section = document.getElementById('salas-section');
+      section.classList.remove('fade-out');
+      section.style.display = 'block';
+      setTimeout(() => section.classList.add('fade-in'), 10);
+      document.getElementById('map').style.display = 'none';
+      document.getElementById('edificios-section').style.display = 'none';
+      document.getElementById('chat-section').style.display = 'none';
+      playIn();
+      const lista = document.getElementById('salas-list');
+      lista.innerHTML = '';
+      salas.forEach((sala, idx) => {
+        const urlImagen = sala.imagen || "images/imagen_sala.jpg";
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <span>
+            <b>${sala.nombre}</b> - ${sala.descripcion} <span style="color:#ffd700;">(${sala.edificio})</span>
+            <button onclick="mostrarImagenSala(${idx})">Ver imagen</button>
+          </span>
+        `;
+        lista.appendChild(li);
+      });
+    }
+
+    // Nueva función para mostrar la imagen de la sala en un modal flotante
+    window.mostrarImagenSala = function(idx) {
+      // Elimina modal anterior si existe
+      let modal = document.getElementById('sala-modal');
+      if (modal) modal.remove();
+      const sala = salas[idx];
+      const urlImagen = sala.imagen || "images/imagen_sala.jpg";
+      modal = document.createElement('div');
+      modal.id = 'sala-modal';
+      modal.style.position = 'fixed';
+      modal.style.top = '0';
+      modal.style.left = '0';
+      modal.style.width = '100vw';
+      modal.style.height = '100vh';
+      modal.style.background = 'rgba(0,0,0,0.7)';
+      modal.style.display = 'flex';
+      modal.style.alignItems = 'center';
+      modal.style.justifyContent = 'center';
+      modal.style.zIndex = '9999';
+      modal.innerHTML = `
+        <div style="background:#232526;padding:30px 30px 18px 30px;border-radius:18px;box-shadow:0 8px 32px #000a;max-width:90vw;max-height:90vh;position:relative;text-align:center;">
+          <h2 style="color:#ffd700;margin-bottom:18px;">${sala.nombre}</h2>
+          <img src="${urlImagen}" alt="Imagen de la sala" style="max-width:420px;max-height:320px;border-radius:12px;box-shadow:0 2px 8px #23252633;border:2px solid #ffd70055;">
+          <div style="color:#fff;margin:18px 0 0 0;">
+            ${sala.descripcion}<br>
+            <span style="color:#ffd700;">Edificio: ${sala.edificio}</span>
+          </div>
+          <button id="cerrar-modal-sala" style="margin-top:18px;background:#ffd700;color:#232526;border:none;border-radius:7px;padding:8px 22px;font-weight:bold;cursor:pointer;">Cerrar</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      document.getElementById('cerrar-modal-sala').onclick = function() {
+        modal.remove();
+      };
+      modal.onclick = function(e) {
+        if (e.target === modal) modal.remove();
+      };
+    };
+
+    // Mostrar sección de edificios con animación y sonido
+    function mostrarEdificios() {
+      const section = document.getElementById('edificios-section');
+      section.classList.remove('fade-out');
+      section.style.display = 'block';
+      setTimeout(() => section.classList.add('fade-in'), 10);
+      document.getElementById('map').style.display = 'none';
+      document.getElementById('salas-section').style.display = 'none';
+      playIn();
+      const lista = document.getElementById('edificios-list');
+      lista.innerHTML = '';
+      edificios.forEach((edificio, idx) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span><b>${edificio.nombre}</b> - ${edificio.descripcion}</span>
+          <button onclick="centrarEdificio(${idx})">Ver en mapa</button>`;
+        lista.appendChild(li);
+      });
+    }
+
+    // Ocultar sección de edificios con animación y sonido
+    function ocultarEdificios() {
+      const section = document.getElementById('edificios-section');
+      section.classList.remove('fade-in');
+      section.classList.add('fade-out');
+      playOut();
+      setTimeout(() => {
+        section.style.display = 'none';
+        document.getElementById('map').style.display = 'block';
+      }, 450);
+    }
+
+    // Centrar mapa en la sala seleccionada y mostrar imagen
+    window.centrarSala = function(idx) {
+      ocultarSalas();
+      // Mostrar imagen de la sala en un modal flotante, NO en el mapa
+      const sala = salas[idx];
+      // Si no tienes una propiedad imagen, usa una imagen genérica
+      const urlImagen = sala.imagen || "images/imagen_sala.jpg";
+
+      // Crea el modal si no existe
+      let modal = document.getElementById('sala-modal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'sala-modal';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100vw';
+        modal.style.height = '100vh';
+        modal.style.background = 'rgba(0,0,0,0.7)';
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.style.zIndex = '9999';
+        modal.innerHTML = `
+          <div style="background:#232526;padding:30px 30px 18px 30px;border-radius:18px;box-shadow:0 8px 32px #000a;max-width:90vw;max-height:90vh;position:relative;text-align:center;">
+            <h2 style="color:#ffd700;margin-bottom:18px;">${sala.nombre}</h2>
+            <img src="${urlImagen}" alt="Imagen de la sala" style="max-width:420px;max-height:320px;border-radius:12px;box-shadow:0 2px 8px #23252633;border:2px solid #ffd70055;">
+            <div style="color:#fff;margin:18px 0 0 0;">
+              ${sala.descripcion}<br>
+              <span style="color:#ffd700;">Edificio: ${sala.edificio}</span>
+            </div>
+            <button id="cerrar-modal-sala" style="margin-top:18px;background:#ffd700;color:#232526;border:none;border-radius:7px;padding:8px 22px;font-weight:bold;cursor:pointer;">Cerrar</button>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        document.getElementById('cerrar-modal-sala').onclick = function() {
+          modal.remove();
+        };
+        // Cerrar modal al hacer click fuera del contenido
+        modal.onclick = function(e) {
+          if (e.target === modal) modal.remove();
+        };
+      }
+    };
+
+    // Centrar mapa en el edificio seleccionado y mostrar imagen
+    window.centrarEdificio = function(idx) {
+      ocultarEdificios();
+      if (window.map) {
+        const edificio = edificios[idx];
+        window.map.setView(edificio.ubicacion, 2);
+        L.popup()
+          .setLatLng(edificio.ubicacion)
+          .setContent(
+            `<b>${edificio.nombre}</b><br>${edificio.descripcion}<br>
+            <img src="${edificio.imagen}" alt="Imagen del edificio">`
+          )
+          .openOn(window.map);
+      }
+    };
+
+    // Modifica el evento del menú "Edificios", "Salas" y "Inicio"
+    document.addEventListener('DOMContentLoaded', function() {
+      const sidebarItems = document.querySelectorAll('#sidebar ul li');
+      sidebarItems.forEach(li => {
+        if (li.textContent.trim() === 'Salas') {
+          li.onclick = function() { mostrarSalas(); };
+        }
+        if (li.textContent.trim() === 'Edificios') {
+          li.onclick = function() { mostrarEdificios(); };
+        }
+        if (li.textContent.trim() === 'Inicio') {
+          li.onclick = function() {
+            document.getElementById('salas-section').style.display = 'none';
+            document.getElementById('edificios-section').style.display = 'none';
+            document.getElementById('chat-section').style.display = 'none';
+            document.getElementById('map').style.display = 'block';
+            playIn();
+          };
+        }
+        if (li.textContent.trim() === 'Contacto') {
+          li.onclick = function() {
+            window.open('https://www.youtube.com/watch?v=iId5WDsYxZ4', '_blank');
+          };
+        }
+        if (li.textContent.trim() === 'Chat') {
+          li.onclick = function() {
+            document.getElementById('salas-section').style.display = 'none';
+            document.getElementById('edificios-section').style.display = 'none';
+            document.getElementById('map').style.display = 'none';
+            document.getElementById('chat-section').style.display = 'block';
+            document.getElementById('chat-box').innerHTML = '¡Hola! Soy tu asistente virtual. Escribe el nombre de una sala o edificio y te ayudo a encontrarlo.';
+          };
+        }
+        if (li.textContent.trim() === 'Marcadores Personalizados') {
+          li.onclick = function() {
+            document.getElementById('salas-section').style.display = 'none';
+            document.getElementById('edificios-section').style.display = 'none';
+            document.getElementById('map').style.display = 'none';
+            document.getElementById('chat-section').style.display = 'none';
+            document.getElementById('personalizados-section').style.display = 'block';
+            playIn();
+          };
+        }
+      });
+
+      // Chat bot simple
+      const chatInput = document.getElementById('chat-input');
+      const chatSend = document.getElementById('chat-send');
+      const chatBox = document.getElementById('chat-box');
+
+      function responderChat(msg) {
+        let respuesta = "No encontré esa sala o edificio. Intenta con otro nombre.";
+        const msgLower = msg.trim().toLowerCase();
+
+        // Ayuda
+        if (msgLower === "ayuda" || msgLower === "help") {
+          mostrarAyudaChat();
+          return;
+        }
+
+        // Buscar todas las salas de un edificio: "salas en m1"
+        const matchSalasEn = msgLower.match(/^salas en ([a-z0-9]+)/i);
+        if (matchSalasEn) {
+          buscarSalasPorEdificio(matchSalasEn[1]);
+          return;
+        }
+
+        // Buscar sala por nombre exacto o por número
+        let sala = salas.find(s => s.nombre.toLowerCase() === msgLower);
+        if (!sala) {
+          // Buscar por número, por ejemplo: "sala 102" o solo "102"
+          const match = msgLower.match(/(\d+)/);
+          if (match) {
+            sala = salas.find(s =>
+              s.nombre.toLowerCase().includes(match[1]) ||
+              (s.edificio && s.edificio.toLowerCase() === msgLower)
+            );
+          }
+        }
+
+        if (sala) {
+          // Busca el edificio correspondiente
+          const edificio = edificios.find(e => e.nombre.toLowerCase() === sala.edificio.toLowerCase());
+          respuesta = `
+            La <b>${sala.nombre}</b> está en el <span style="color:#ffd700;">${sala.edificio}</span>
+            <button onclick="mostrarImagenSala(${salas.indexOf(sala)})">Ver imagen</button>
+            ${edificio ? `<button onclick="redirigirEdificio('${edificio.nombre}')">Ver edificio</button>
+            <button onclick="buscarSalasPorEdificio('${edificio.nombre}')">Ver salas en este edificio</button>` : ''}
+          `;
+        } else {
+          // Buscar edificio por nombre exacto
+          const edificio = edificios.find(e => e.nombre.toLowerCase() === msgLower);
+          if (edificio) {
+            respuesta = `
+              El <b>${edificio.nombre}</b> está en el campus.
+              <button onclick="redirigirEdificio('${edificio.nombre}')">Ver edificio</button>
+              <button onclick="buscarSalasPorEdificio('${edificio.nombre}')">Ver salas en este edificio</button>
+            `;
+          }
+        }
+
+        chatBox.innerHTML += `<div style="margin-top:10px;"><b>Tú:</b> ${msg}</div>`;
+        chatBox.innerHTML += `<div style="margin-top:6px;"><b>Asistente:</b> ${respuesta}</div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+
+      chatSend.onclick = function() {
+        const msg = chatInput.value.trim();
+        if (msg) {
+          responderChat(msg);
+          chatInput.value = '';
+        }
+      };
+      chatInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') chatSend.onclick();
+      });
+    });
+
+    // Función para buscar todas las salas de un edificio y listarlas en el chat
+    window.buscarSalasPorEdificio = function(nombreEdificio) {
+      const chatBox = document.getElementById('chat-box');
+      const salasEdificio = salas.filter(s => s.edificio.toLowerCase() === nombreEdificio.toLowerCase());
+      if (salasEdificio.length > 0) {
+        let lista = salasEdificio.map(
+          (s, idx) => `<li style="margin-bottom:8px;"><b>${s.nombre}</b> - <button onclick="mostrarImagenSala(${salas.indexOf(s)})">Ver imagen</button></li>`
+        ).join('');
+        chatBox.innerHTML += `<div style="margin-top:10px;"><b>Asistente:</b> Salas en <span style="color:#ffd700;">${nombreEdificio}</span>:<ul style="margin:8px 0 0 18px;">${lista}</ul></div>`;
+      } else {
+        chatBox.innerHTML += `<div style="margin-top:10px;"><b>Asistente:</b> No se encontraron salas en el edificio <span style="color:#ffd700;">${nombreEdificio}</span>.</div>`;
+      }
+      chatBox.scrollTop = chatBox.scrollHeight;
+    };
+
+    // Función para mostrar ayuda de comandos en el chat
+    window.mostrarAyudaChat = function() {
+      const chatBox = document.getElementById('chat-box');
+      chatBox.innerHTML += `<div style="margin-top:10px;"><b>Asistente:</b> Puedes escribir:<ul style="margin:8px 0 0 18px;">
+        <li><b>Nombre de sala</b> (ej: Sala 101)</li>
+        <li><b>Nombre de edificio</b> (ej: M1)</li>
+        <li><b>Salas en [edificio]</b> (ej: Salas en M2)</li>
+        <li><b>ayuda</b> para ver estos comandos</li>
+      </ul></div>`;
+      chatBox.scrollTop = chatBox.scrollHeight;
+    };
+
+    // Mejora el bot para reconocer más comandos
+    function responderChat(msg) {
+      let respuesta = "No encontré esa sala o edificio. Intenta con otro nombre.";
+      const msgLower = msg.trim().toLowerCase();
+
+      // Ayuda
+      if (msgLower === "ayuda" || msgLower === "help") {
+        mostrarAyudaChat();
+        return;
+      }
+
+      // Buscar todas las salas de un edificio: "salas en m1"
+      const matchSalasEn = msgLower.match(/^salas en ([a-z0-9]+)/i);
+      if (matchSalasEn) {
+        buscarSalasPorEdificio(matchSalasEn[1]);
+        return;
+      }
+
+      // Buscar sala por nombre exacto o por número
+      let sala = salas.find(s => s.nombre.toLowerCase() === msgLower);
+      if (!sala) {
+        // Buscar por número, por ejemplo: "sala 102" o solo "102"
+        const match = msgLower.match(/(\d+)/);
+        if (match) {
+          sala = salas.find(s =>
+            s.nombre.toLowerCase().includes(match[1]) ||
+            (s.edificio && s.edificio.toLowerCase() === msgLower)
+          );
+        }
+      }
+      if (sala) {
+        respuesta = `La <b>${sala.nombre}</b> está en el <span style="color:#ffd700;">${sala.edificio}</span>. <button onclick="mostrarImagenSala(${salas.indexOf(sala)})">Ver imagen</button>`;
+      } else {
+        // Buscar edificio por nombre exacto
+        const edificio = edificios.find(e => e.nombre.toLowerCase() === msgLower);
+        if (edificio) {
+          respuesta = `El <b>${edificio.nombre}</b> está en el campus. <button onclick="redirigirEdificio('${edificio.nombre}')">Ir al edificio</button>
+          <button onclick="buscarSalasPorEdificio('${edificio.nombre}')">Ver salas en este edificio</button>`;
+        }
+      }
+
+      chatBox.innerHTML += `<div style="margin-top:10px;"><b>Tú:</b> ${msg}</div>`;
+      chatBox.innerHTML += `<div style="margin-top:6px;"><b>Asistente:</b> ${respuesta}</div>`;
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // Función para mostrar información de contacto en el chat
+    window.mostrarContactoChat = function() {
+      const chatBox = document.getElementById('chat-box');
+      chatBox.innerHTML += `<div style="margin-top:10px;"><b>Asistente:</b> Puedes contactarnos en <a href="mailto:contacto@utem.cl" style="color:#ffd700;">contacto@utem.cl</a> o visitar <a href="https://www.utem.cl" target="_blank" style="color:#ffd700;">www.utem.cl</a></div>`;
+      chatBox.scrollTop = chatBox.scrollHeight;
+    };
+
+    // Map logic
+    function initMap() {
+      const imageWidth = 1000;
+      const imageHeight = 800;
+      const bounds = [[0,0], [imageHeight, imageWidth]];
+      window.map = L.map('map', {
+        crs: L.CRS.Simple,
+        minZoom: -1,
+        maxZoom: 4,
+        maxBounds: bounds,
+        maxBoundsViscosity: 1.0,
+      });
+      map.fitBounds(bounds);
+      L.imageOverlay('images/plano.png', bounds).addTo(map);
+
+      // NO pongas aquí markersLayerGroup ni el forEach de edificios
+      // Solo la leyenda:
+      const legend = L.control({position: 'bottomright'});
+      legend.onAdd = function() {
+        const div = L.DomUtil.create('div', 'legend');
+        div.innerHTML = `
+          <h4 style="margin:0 0 8px 0;color:#b8860b;">Leyenda</h4>
+          <img src="https://cdn-icons-png.flaticon.com/512/190/190406.png" width="18" /> Edificio<br>
+          <span style="display:inline-block;width:18px;height:18px;background:#27ae60;border-radius:3px;margin-right:6px;"></span> Zonas verdes<br>
+          <img src="https://cdn-icons-png.flaticon.com/512/190/190411.png" width="18" /> Sala
+        `;
+        div.style.background = 'rgba(255,255,255,0.93)';
+        div.style.padding = '12px';
+        div.style.borderRadius = '10px';
+        div.style.color = '#232526';
+        div.style.fontSize = '15px';
+        return div;
+      };
+      legend.addTo(map);
+    }
+    // Oculta main content al inicio
+    mainContent.style.display = 'none';
+
+    // Reproducir audio al entrar a la página de inicio
+    window.addEventListener('DOMContentLoaded', function() {
+      playIn();
+    });
+
+    // Limpia el localStorage al cargar la página (solo para propósitos de demostración)
+    // localStorage.clear();
+  </script>
+  <!-- agrega o mejora estas utilidades y detalles para un mapa más completo... -->
+
+  <script>
+  // --- SUGERENCIAS Y CORRECCIONES DE BUGS ---
+
+  // 1. Evita duplicar tooltips y popups en marcadores de edificios
+  // 2. Evita que se creen múltiples modales de sala
+  // 3. Corrige el sidebar para que funcione con y sin onclick en <li>
+  // 4. Evita limpiar localStorage en cada recarga (quita localStorage.clear())
+  // 5. Corrige tooltips de edificios para que no se dupliquen si se reinicializa el mapa
+  // 6. Corrige el botón de agregar marcador para evitar múltiples listeners
+  // 7. Corrige el botón de ocultar/mostrar marcadores si lo tienes implementado
+
+  // 1. Marcadores de edificios: usa LayerGroup y guarda referencia para ocultar/mostrar
+  // let markersLayerGroup; // Eliminado para evitar redeclaración
+  function crearMarcadoresEdificios() {
+    if (markersLayerGroup) {
+      window.map.removeLayer(markersLayerGroup);
+      markersLayerGroup.clearLayers();
+    }
+    markersLayerGroup = L.layerGroup();
+    edificios.forEach((edificio) => {
+      const key = 'edificio_' + edificio.nombre;
+      const saved = localStorage.getItem(key);
+      let ubicacion = edificio.ubicacion;
+      if (saved) {
+        try {
+          const arr = JSON.parse(saved);
+          if (Array.isArray(arr) && arr.length === 2) ubicacion = arr;
+        } catch {}
+      }
+      // Actualiza la ubicación en el array de edificios con la última posición guardada
+      edificio.ubicacion = ubicacion;
+
+      const marker = L.marker(ubicacion, { draggable: true })
+        .bindPopup(`<b>${edificio.nombre}</b><br>${edificio.descripcion}<br><img src="${edificio.imagen}" alt="Imagen del edificio" style="max-width:120px;">`);
+      marker.on('dragend', function(e) {
+        const nuevaPos = [e.target.getLatLng().lat, e.target.getLatLng().lng];
+        // Actualiza la ubicación en el array y en localStorage
+        edificio.ubicacion = nuevaPos;
+        localStorage.setItem(key, JSON.stringify(nuevaPos));
+      });
+      marker.bindTooltip(
+        `<b>${edificio.nombre}</b><br>${edificio.descripcion.length > 40 ? edificio.descripcion.slice(0, 40) + '...' : edificio.descripcion}`,
+        {direction: 'top', offset: [0, -10]}
+      );
+      marker._edificioNombre = edificio.nombre;
+      markersLayerGroup.addLayer(marker);
+    });
+    markersLayerGroup.addTo(window.map);
+    markersVisible = true;
+    // Actualiza el botón
+    const btn = document.getElementById('toggle-markers-btn');
+    if (btn) {
+      btn.title = "Ocultar marcadores";
+      btn.innerHTML = "👁️";
+    }
+  }
+  // Oculta main content al inicio
+  mainContent.style.display = 'none';
+
+  // Reproducir audio al entrar a la página de inicio
+  window.addEventListener('DOMContentLoaded', function() {
+    playIn();
+  });
+
+  // Limpia el localStorage al cargar la página (solo para propósitos de demostración)
+  // localStorage.clear();
+  </script>
+
+  <!-- Corrige duplicados, inicialización y errores de marcadores y botones -->
+
+  <script>
+  // --- VARIABLES GLOBALES ---
+  let markersLayerGroup = null;
+  let markersVisible = true;
+  let addMarkerActive = false;
+
+  // --- BOTÓN OCULTAR/MOSTRAR MARCADORES ---
+  function ensureToggleMarkersBtn() {
+    if (!document.getElementById('toggle-markers-btn')) {
+      const btn = document.createElement('button');
+      btn.id = 'toggle-markers-btn';
+      btn.title = 'Ocultar/mostrar marcadores';
+      btn.style = "position:fixed;bottom:100px;right:32px;z-index:1200;background:#ffd700;color:#232526;border:none;border-radius:50%;width:56px;height:56px;font-size:1.7em;box-shadow:0 2px 8px #23252655;cursor:pointer;display:none;";
+      btn.innerHTML = "👁️";
+      document.body.appendChild(btn);
+      btn.onclick = function() {
+        if (!window.map || !markersLayerGroup) return;
+        markersVisible = !markersVisible;
+        if (markersVisible) {
+          window.map.addLayer(markersLayerGroup);
+          this.title = "Ocultar marcadores";
+          this.innerHTML = "👁️";
+        } else {
+          window.map.removeLayer(markersLayerGroup);
+          this.title = "Mostrar marcadores";
+          this.innerHTML = "🚫";
+        }
+      };
+    }
+  }
+  ensureToggleMarkersBtn();
+
+  // Mostrar el botón solo cuando el mapa está visible
+  function toggleToggleMarkersBtn(show) {
+    const btn = document.getElementById('toggle-markers-btn');
+    if (btn) btn.style.display = show ? 'block' : 'none';
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    const observer = new MutationObserver(() => {
+      toggleToggleMarkersBtn(document.getElementById('map').style.display !== 'none');
+    });
+    observer.observe(document.getElementById('main-content'), { attributes: true, subtree: true });
+  });
+
+  // --- CREAR MARCADORES DE EDIFICIOS ---
+  function crearMarcadoresEdificios() {
+    if (markersLayerGroup) {
+      window.map.removeLayer(markersLayerGroup);
+      markersLayerGroup.clearLayers();
+    }
+    markersLayerGroup = L.layerGroup();
+    edificios.forEach((edificio) => {
+      const key = 'edificio_' + edificio.nombre;
+      const saved = localStorage.getItem(key);
+      let ubicacion = edificio.ubicacion;
+      if (saved) {
+        try {
+          const arr = JSON.parse(saved);
+          if (Array.isArray(arr) && arr.length === 2) ubicacion = arr;
+        } catch {}
+      }
+      // Actualiza la ubicación en el array de edificios con la última posición guardada
+      edificio.ubicacion = ubicacion;
+
+      const marker = L.marker(ubicacion, { draggable: true })
+        .bindPopup(`<b>${edificio.nombre}</b><br>${edificio.descripcion}<br><img src="${edificio.imagen}" alt="Imagen del edificio" style="max-width:120px;">`);
+      marker.on('dragend', function(e) {
+        const nuevaPos = [e.target.getLatLng().lat, e.target.getLatLng().lng];
+        // Actualiza la ubicación en el array y en localStorage
+        edificio.ubicacion = nuevaPos;
+        localStorage.setItem(key, JSON.stringify(nuevaPos));
+      });
+      marker.bindTooltip(
+        `<b>${edificio.nombre}</b><br>${edificio.descripcion.length > 40 ? edificio.descripcion.slice(0, 40) + '...' : edificio.descripcion}`,
+        {direction: 'top', offset: [0, -10]}
+      );
+      marker._edificioNombre = edificio.nombre;
+      markersLayerGroup.addLayer(marker);
+    });
+    markersLayerGroup.addTo(window.map);
+    markersVisible = true;
+    // Actualiza el botón
+    const btn = document.getElementById('toggle-markers-btn');
+    if (btn) {
+      btn.title = "Ocultar marcadores";
+      btn.innerHTML = "👁️";
+    }
+  }
+
+  // --- BOTÓN AGREGAR MARCADOR PERSONALIZADO ---
+  function ensureAddMarkerBtn() {
+    if (!document.getElementById('add-marker-btn')) {
+      const btn = document.createElement('button');
+      btn.id = 'add-marker-btn';
+      btn.title = "Agregar marcador personalizado";
+      btn.style = "position:fixed;bottom:32px;right:32px;z-index:1200;background:#ffd700;color:#232526;border:none;border-radius:50%;width:56px;height:56px;font-size:2em;box-shadow:0 2px 8px #23252655;cursor:pointer;display:none;";
+      btn.innerHTML = "+";
+      document.body.appendChild(btn);
+      btn.onclick = function() {
+        if (!window.map || addMarkerActive) return;
+        addMarkerActive = true;
+        alert('Haz clic en el mapa para agregar un marcador personalizado.');
+        let tempMarker;
+        function onMapClick(e) {
+          if (tempMarker) window.map.removeLayer(tempMarker);
+          tempMarker = L.marker(e.latlng, {
+            icon: L.icon({
+              iconUrl: 'https://cdn-icons-png.flaticon.com/512/854/854878.png',
+              iconSize: [32, 32],
+              iconAnchor: [16, 32],
+              popupAnchor: [0, -32]
+            }),
+            draggable: true
+          }).addTo(window.map);
+          let nombre = prompt('Nombre del marcador:');
+          if (!nombre) nombre = 'Marcador personalizado';
+          tempMarker.bindPopup(`<b>${nombre}</b>`).openPopup();
+          tempMarker.bindTooltip(`<b>${nombre}</b>`, {direction: 'top', offset: [0, -10]});
+          marcadoresPersonalizados.push({ nombre, ubicacion: [e.latlng.lat, e.latlng.lng] });
+          localStorage.setItem('marcadoresPersonalizados', JSON.stringify(marcadoresPersonalizados));
+          crearMarcadoresPersonalizados();
+          window.map.off('click', onMapClick);
+          addMarkerActive = false;
+        }
+        window.map.on('click', onMapClick);
+      };
+    }
+  }
+  ensureAddMarkerBtn();
+
+  // Mostrar el botón solo cuando el mapa está visible
+  function toggleAddMarkerBtn(show) {
+    const btn = document.getElementById('add-marker-btn');
+    if (btn) btn.style.display = show ? 'block' : 'none';
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    const observer = new MutationObserver(() => {
+      toggleAddMarkerBtn(document.getElementById('map').style.display !== 'none');
+    });
+    observer.observe(document.getElementById('main-content'), { attributes: true, subtree: true });
+  });
+
+  // --- INTEGRACIÓN CON initMap ---
+  if (typeof initMap === "function") {
+    const originalInitMap = initMap;
+    window.initMap = function() {
+      originalInitMap();
+      crearMarcadoresEdificios();
+      crearMarcadoresSalas();
+      crearMarcadoresPersonalizados();
+      // Si tienes controles extra, agrégalos aquí
+      if (typeof agregarControlesMapa === "function") agregarControlesMapa();
+      if (typeof agregarTooltipsEdificios === "function") agregarTooltipsEdificios();
+    };
+  }
+
+  // --- REAPARECER MARCADORES SIEMPRE QUE SE MUESTRE EL MAPA ---
+  window.setMarkersVisibility = function(visible) {
+    if (!window.map || !markersLayerGroup) return;
+    if (visible) {
+      window.map.addLayer(markersLayerGroup);
+    } else {
+      window.map.removeLayer(markersLayerGroup);
+    }
+    markersVisible = visible;
+  };
+
+  // Agrega o reemplaza esta función global para centrar el mapa en el marcador de un edificio por nombre:
+
+  window.redirigirEdificio = function(nombreEdificio) {
+    document.getElementById('salas-section').style.display = 'none';
+    document.getElementById('edificios-section').style.display = 'none';
+    document.getElementById('chat-section').style.display = 'none';
+    document.getElementById('personalizados-section').style.display = 'none';
+    document.getElementById('map').style.display = 'block';
+
+    if (!window.map || !markersLayerGroup) return;
+
+    let markerFound = null;
+    markersLayerGroup.eachLayer(function(marker) {
+      if (marker._edificioNombre === nombreEdificio) {
+        markerFound = marker;
+      }
+    });
+
+    if (markerFound) {
+      window.map.setView(markerFound.getLatLng(), 2);
+      markerFound.openPopup();
+    } else {
+      // Fallback: centra en la ubicación del edificio
+      const edificio = edificios.find(e => e.nombre === nombreEdificio);
+      if (edificio) {
+        window.map.setView(edificio.ubicacion, 2);
+        L.popup()
+          .setLatLng(edificio.ubicacion)
+          .setContent(
+            `<b>${edificio.nombre}</b><br>${edificio.descripcion}<br>
+            <img src="${edificio.imagen}" alt="Imagen del edificio" style="max-width:120px;">`
+          )
+          .openOn(window.map);
+      }
+    }
+  };
+  </script>
+</body>
+</html>
